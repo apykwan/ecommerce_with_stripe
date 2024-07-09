@@ -7,7 +7,6 @@ import {
 } from '@/components/ui/card';
 
 import { formatNumber, formatCurrency } from '@/lib/formatters';
-// import { wait } from '@/lib/utils';
 import db from '@/db';
 
 async function getSalesData() {
@@ -69,7 +68,7 @@ export default async function AdminDashboard() {
       <Dashboard 
         title="Products" 
         subtitle={`${formatNumber(productData.inActiveCount)} Inactive`} 
-        body={formatCurrency(productData.activeCount)} 
+        body={formatNumber(productData.activeCount)}
       />
     </div>
   );
