@@ -34,7 +34,7 @@ export function ProductForm({ product }: { product?: Product | null }) {
           defaultValue={product?.name || ""} 
           required 
         />
-        {error.name && <div className="text-destructive">{error.name}</div>}
+        {error?.name && <div className="text-destructive">{error.name}</div>}
       </div>
       <div className="space-y-2">
         <Label htmlFor="priceInCents">Price in Cents</Label>
@@ -49,7 +49,7 @@ export function ProductForm({ product }: { product?: Product | null }) {
         <div className="text-muted-foreground">
           {formatCurrency((priceInCents || 0) / 100)}
         </div>
-        {error.priceInCents && <div className="text-destructive">{error.priceInCents}</div>}
+        {error?.priceInCents && <div className="text-destructive">{error.priceInCents}</div>}
       </div>
       <div className="space-y-2">
         <Label htmlFor="description">Description</Label>
@@ -59,7 +59,7 @@ export function ProductForm({ product }: { product?: Product | null }) {
           required
           defaultValue={product?.description}
         />
-        {error.description && (
+        {error?.description && (
           <div className="text-destructive">{error.description}</div>
         )}
       </div>
@@ -76,7 +76,7 @@ export function ProductForm({ product }: { product?: Product | null }) {
             {product.filePath}
           </div>
         )}
-        {error.file && <div className="text-destructive">{error.file}</div>}
+        {error?.file && <div className="text-destructive">{error.file}</div>}
       </div>
       <div className="space-y-2">
         <Label htmlFor="image">Image</Label>
@@ -89,7 +89,7 @@ export function ProductForm({ product }: { product?: Product | null }) {
             alt="product image" 
           />
         )}
-        {error.image && <div className="text-destructive">{error.image}</div>}
+        {error?.image && <div className="text-destructive">{error.image}</div>}
       </div>
       <SubmitButton />
     </form>
