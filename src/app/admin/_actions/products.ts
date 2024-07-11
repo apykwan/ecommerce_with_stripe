@@ -1,6 +1,7 @@
 "use server";
 
 import fs from 'fs/promises';
+import { revalidatePath } from 'next/cache';
 import { notFound, redirect } from 'next/navigation';
 import { z } from 'zod';
 
@@ -47,6 +48,8 @@ export async function addProduct(prevState: unknown, formData: FormData) {
       imagePath,
     },
   });
+  revalidatePath("/");
+  revalidatePath("/products");
   redirect("/admin/products");
 }
 
@@ -88,7 +91,10 @@ export async function updateProduct(id: string, prevState: unknown, formData: Fo
       imagePath,
     },
   });
-  redirect("/admin/products");
+
+  revalidatePath("/");
+  revalidatePath("/products");
+  // redirect("/admin/products");
 }
 
 export async function toggleProductAvailability(id: string, isAvailableForPurchase: boolean) {
@@ -104,4 +110,7 @@ export async function deleteProduct(id: string) {
 
   await fs.unlink(product.filePath);
   await fs.unlink(`public/${product.imagePath}`);
+
+  revalidatePath("/");
+  revalidatePath("/products");
 }
