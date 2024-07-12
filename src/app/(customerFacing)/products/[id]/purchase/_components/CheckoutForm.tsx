@@ -12,6 +12,7 @@ import { formatCurrency } from '@/lib/formatters';
 
 type CheckoutFormProps = {
   product: {
+    id: string;
     imagePath: string;
     name: string;
     priceInCents: number;
@@ -41,7 +42,7 @@ export default function CheckoutForm({ product, clientSecret }: CheckoutFormProp
         </div>
       </div>
       <Elements options={{ clientSecret }} stripe={stripePromise}>
-        <Form priceInCents={product.priceInCents} />
+        <Form priceInCents={product.priceInCents} productId={product.id} />
       </Elements>
     </div>
   );
