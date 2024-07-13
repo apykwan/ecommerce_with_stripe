@@ -3,7 +3,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import Stripe from "stripe";
-import { Card, CardDescription, CardContent, CardFooter, CardHeader, CardTitle, } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
 import db from '@/db';
