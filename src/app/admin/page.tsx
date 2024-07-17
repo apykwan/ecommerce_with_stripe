@@ -1,3 +1,4 @@
+import { type ReactNode } from 'react';
 import { Prisma } from '@prisma/client';
 import { 
   Card, 
@@ -21,9 +22,10 @@ import {
   startOfDay,
   startOfWeek,
   subDays,
-} from "date-fns"
+} from "date-fns";
 
 import OrdersByDayChart from './_components/charts/OrdersByDayChart';
+import UsersByDayChart from './_components/charts/UsersByDayChart';
 import { formatNumber, formatDate, formatCurrency } from '@/lib/formatters';
 import db from '@/db';
 
@@ -59,7 +61,7 @@ async function getSalesData(createdAfter: Date | null, createdBefore: Date | nul
       date: formatDate(day),
       totalSales: 0
     };
-  })
+  });
 
   return {
     chartData: chartData.reduce((data, order) => {
@@ -67,10 +69,12 @@ async function getSalesData(createdAfter: Date | null, createdBefore: Date | nul
       const entry = dayArray.find(day => day.date == formattedDate);
 
       if (entry == null) return data;
+      entry.totalSales += order.pricePaidInCents / 100;
+      return data;
     }, dayArray), 
     amount: (data._sum.pricePaidInCents || 0) / 100,
     numberOfSales: data._count 
-  }
+  };
 }
 
 async function getUserData() {
@@ -98,7 +102,7 @@ async function getProductData() {
 
 export default async function AdminDashboard() {
   const [salesData, userData, productData] = await Promise.all([
-    getSalesData(),
+    getSalesData(subDays(new Date(), 6), new Date()),
     getUserData(),
     getProductData()
   ]);
@@ -125,14 +129,21 @@ export default async function AdminDashboard() {
         />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Total Sales</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <OrdersByDayChart data={[{ date: "hi", totalSales: 100}, { date: "bye", totalSales: 50}]} />
-          </CardContent>
-        </Card>
+        <ChartCard title="Total Sales">
+          <OrdersByDayChart 
+            data={salesData.chartData} 
+          />
+        </ChartCard>
+        <ChartCard title="Total Users">
+          <UsersByDayChart
+            data={[
+              { date: "Day 1", totalUsers: 12 },
+              { date: "Day 2", totalUsers: 2 },
+              { date: "Day 3", totalUsers: 7 },
+              { date: "Day 4", totalUsers: 28 },
+            ]} 
+          />
+        </ChartCard>
       </div>
     </main>
   );
@@ -153,6 +164,24 @@ function Dashboard({ title, subtitle, body}: DashboardCardProps) {
       </CardHeader>
       <CardContent>
         <p>{body}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+type ChartCardProps = {
+  title: string;
+  children: ReactNode;
+}
+
+function ChartCard({ title, children }: ChartCardProps) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {children}
       </CardContent>
     </Card>
   );
