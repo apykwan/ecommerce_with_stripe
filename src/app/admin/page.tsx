@@ -77,24 +77,63 @@ async function getSalesData(createdAfter: Date | null, createdBefore: Date | nul
   };
 }
 
-async function getUserData() {
-  const [userCount, orderData] = await Promise.all([
+async function getUserData(createdAfter: Date | null, createdBefore: Date | null) {
+  const createdAtQuery: Prisma.UserWhereInput["createdAt"] = {};
+  if (createdAfter) createdAtQuery.gte = createdAfter;
+  if (createdBefore) createdAtQuery.lte = createdBefore;
+  
+  const [userCount, orderData, chartData] = await Promise.all([
      db.user.count(),
      db.order.aggregate({
       _sum: { pricePaidInCents: true }
+    }),
+    db.user.findMany({ 
+      select: { createdAt: true },
+      where: { createdAt: createdAtQuery },
+      orderBy: { createdAt: "asc"}
     })
   ]);
 
+  const dayArray = eachDayOfInterval(
+    interval(
+      createdAfter || startOfDay(chartData[0].createdAt), 
+      createdBefore || new Date()
+    )
+  ).map(day => {
+    return {
+      date: formatDate(day),
+      totalUsers: 0
+    };
+  });
+
   return {
+    chartData: chartData.reduce((data, user) => {
+      const formattedDate = formatDate(user.createdAt);
+      const entry = dayArray.find(day => day.date == formattedDate);
+
+      if (entry == null) return data;
+      entry.totalUsers += 1;
+      return data;
+    }, dayArray),
     userCount,
     averageValuePerUser: userCount === 0 ? 0 : (orderData._sum.pricePaidInCents || 0) / userCount/ 100
   };
 }
 
-async function getProductData() {
-  const [activeCount, inActiveCount] = await Promise.all([
+async function getProductData(createdAfter: Date | null, createdBefore: Date | null) {
+  const createdAtQuery: Prisma.OrderWhereInput["createdAt"] = {}
+  const [activeCount, inActiveCount, chartData] = await Promise.all([
     db.product.count({ where: { isAvailableForPurchase: true }}),
     db.product.count({ where: { isAvailableForPurchase: false }}),
+    db.product.findMany({
+      select: {
+        name: true,
+        orders: {
+          select: { pricePaidInCents: true },
+          where: { createdAt: createdAtQuery },
+        },
+      },
+    }),
   ]);
 
   return { activeCount, inActiveCount };
@@ -102,9 +141,9 @@ async function getProductData() {
 
 export default async function AdminDashboard() {
   const [salesData, userData, productData] = await Promise.all([
-    getSalesData(subDays(new Date(), 6), new Date()),
-    getUserData(),
-    getProductData()
+    getSalesData(subDays(new Date(), 16), new Date()),
+    getUserData(subDays(new Date(), 5), new Date()),
+    getProductData(subDays(new Date(), 6), new Date())
   ]);
 
   return (
@@ -136,12 +175,7 @@ export default async function AdminDashboard() {
         </ChartCard>
         <ChartCard title="Total Users">
           <UsersByDayChart
-            data={[
-              { date: "Day 1", totalUsers: 12 },
-              { date: "Day 2", totalUsers: 2 },
-              { date: "Day 3", totalUsers: 7 },
-              { date: "Day 4", totalUsers: 28 },
-            ]} 
+            data={userData.chartData} 
           />
         </ChartCard>
       </div>
