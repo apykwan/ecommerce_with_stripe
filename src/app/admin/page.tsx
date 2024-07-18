@@ -1,4 +1,3 @@
-import { type ReactNode } from 'react';
 import { Prisma } from '@prisma/client';
 import { 
   Card, 
@@ -7,8 +6,7 @@ import {
   CardHeader,
   CardTitle 
 } from '@/components/ui/card';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
+
 import {
   differenceInDays,
   differenceInMonths,
@@ -26,10 +24,12 @@ import {
   subDays,
 } from "date-fns";
 
+import ChartCard from './_components/ChartCard';
 import OrdersByDayChart from './_components/charts/OrdersByDayChart';
 import UsersByDayChart from './_components/charts/UsersByDayChart';
 import RevenueByProductChart from './_components/charts/RevenueByProductChart';
 import { formatNumber, formatDate, formatCurrency } from '@/lib/formatters';
+import { getRangeOption, RANGE_OPTIONS } from '@/lib/rangeOptions';
 import db from '@/db';
 
 async function getSalesData(createdAfter: Date | null, createdBefore: Date | null) {
@@ -156,9 +156,23 @@ async function getProductData(createdAfter: Date | null, createdBefore: Date | n
   };
 }
 
-export default async function AdminDashboard() {
+export default async function AdminDashboard({ 
+  searchParams: {
+    totalSalesRange,
+    newCustomersRange,
+    revenueByProductRange
+  } 
+}: {
+  searchParams: {
+    totalSalesRange?: string;
+    newCustomersRange?: string;
+    revenueByProductRange?: string;
+  }
+}) {
+  const totalSalesRangeOption = getRangeOption(totalSalesRange) || RANGE_OPTIONS.last_7_days;
+
   const [salesData, userData, productData] = await Promise.all([
-    getSalesData(subDays(new Date(), 16), new Date()),
+    getSalesData(totalSalesRangeOption.startDate, totalSalesRangeOption.endDate),
     getUserData(subDays(new Date(), 5), new Date()),
     getProductData(subDays(new Date(), 6), new Date())
   ]);
@@ -185,17 +199,21 @@ export default async function AdminDashboard() {
         />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ChartCard title="Total Sales">
+        <ChartCard 
+          title="Total Sales" 
+          queryKey="totalSalesRange" 
+          selectedRangeLabel={totalSalesRangeOption.label}
+        >
           <OrdersByDayChart 
             data={salesData.chartData} 
           />
         </ChartCard>
-        <ChartCard title="New Clients">
+        <ChartCard title="New Clients" queryKey="newCustomersRange">
           <UsersByDayChart
             data={userData.chartData} 
           />
         </ChartCard>
-        <ChartCard title="Revenue By Product">
+        <ChartCard title="Revenue By Product" queryKey="revenueByProductRange">
           <RevenueByProductChart
             data={productData.chartData} 
           />
@@ -220,35 +238,6 @@ function Dashboard({ title, subtitle, body}: DashboardCardProps) {
       </CardHeader>
       <CardContent>
         <p>{body}</p>
-      </CardContent>
-    </Card>
-  );
-}
-
-type ChartCardProps = {
-  title: string;
-  children: ReactNode;
-}
-
-function ChartCard({ title, children }: ChartCardProps) {
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex gap-4 justify-between items-center">
-          <CardTitle>{title}</CardTitle>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button>Select Range</Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem>Last 7 Days</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-        
-      </CardHeader>
-      <CardContent>
-        {children}
       </CardContent>
     </Card>
   );
