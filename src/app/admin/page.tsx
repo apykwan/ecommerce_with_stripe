@@ -7,6 +7,8 @@ import {
   CardHeader,
   CardTitle 
 } from '@/components/ui/card';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
 import {
   differenceInDays,
   differenceInMonths,
@@ -26,6 +28,7 @@ import {
 
 import OrdersByDayChart from './_components/charts/OrdersByDayChart';
 import UsersByDayChart from './_components/charts/UsersByDayChart';
+import RevenueByProductChart from './_components/charts/RevenueByProductChart';
 import { formatNumber, formatDate, formatCurrency } from '@/lib/formatters';
 import db from '@/db';
 
@@ -122,6 +125,9 @@ async function getUserData(createdAfter: Date | null, createdBefore: Date | null
 
 async function getProductData(createdAfter: Date | null, createdBefore: Date | null) {
   const createdAtQuery: Prisma.OrderWhereInput["createdAt"] = {}
+  if (createdAfter) createdAtQuery.gte = createdAfter;
+  if (createdBefore) createdAtQuery.lte = createdBefore;
+
   const [activeCount, inActiveCount, chartData] = await Promise.all([
     db.product.count({ where: { isAvailableForPurchase: true }}),
     db.product.count({ where: { isAvailableForPurchase: false }}),
@@ -136,7 +142,18 @@ async function getProductData(createdAfter: Date | null, createdBefore: Date | n
     }),
   ]);
 
-  return { activeCount, inActiveCount };
+  return {
+    chartData: chartData.map(product => {
+      return {
+        name: product.name,
+        revenue: product.orders.reduce((sum, order) => {
+          return sum + order.pricePaidInCents / 100
+        }, 0)
+      }
+    }).filter(product => product.revenue > 0),
+    activeCount, 
+    inActiveCount 
+  };
 }
 
 export default async function AdminDashboard() {
@@ -173,9 +190,14 @@ export default async function AdminDashboard() {
             data={salesData.chartData} 
           />
         </ChartCard>
-        <ChartCard title="Total Users">
+        <ChartCard title="New Clients">
           <UsersByDayChart
             data={userData.chartData} 
+          />
+        </ChartCard>
+        <ChartCard title="Revenue By Product">
+          <RevenueByProductChart
+            data={productData.chartData} 
           />
         </ChartCard>
       </div>
@@ -212,7 +234,18 @@ function ChartCard({ title, children }: ChartCardProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{title}</CardTitle>
+        <div className="flex gap-4 justify-between items-center">
+          <CardTitle>{title}</CardTitle>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button>Select Range</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem>Last 7 Days</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        
       </CardHeader>
       <CardContent>
         {children}

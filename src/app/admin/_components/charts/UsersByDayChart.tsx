@@ -12,7 +12,6 @@ import {
 
 import { formatNumber } from '@/lib/formatters';
 
-
 type UsersByDayChartProps = {
   data: {
     date: string;
