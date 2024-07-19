@@ -278,3 +278,25 @@ function Dashboard({ title, subtitle, body}: DashboardCardProps) {
     </Card>
   );
 }
+
+function getChartDateArray(startDate: Date, endDate: Date = new Date()) {
+  const days = differenceInDays(endDate, startDate);
+  if (days < 30) {
+    return {
+      array: eachDayOfInterval(interval(startDate, endDate)),
+      format: formatDate
+    }
+  }
+
+  const weeks = differenceInWeeks(endDate, startDate);
+  if (weeks < 30) {
+    return {
+      array: eachWeekOfInterval(interval(startDate, endDate)),
+      format: (date: Date) => {
+        const start = startOfWeek(date);
+        const end = endOfWeek(date);
+        return `${formatDate(start)} - ${formatDate(end)}`;
+      }
+    }
+  }
+}
