@@ -20,8 +20,7 @@ import {
   max,
   min,
   startOfDay,
-  startOfWeek,
-  subDays,
+  startOfWeek
 } from "date-fns";
 
 import ChartCard from './_components/ChartCard';
@@ -32,105 +31,110 @@ import { formatNumber, formatDate, formatCurrency } from '@/lib/formatters';
 import { getRangeOption, RANGE_OPTIONS } from '@/lib/rangeOptions';
 import db from '@/db';
 
-async function getSalesData(createdAfter: Date | null, createdBefore: Date | null) {
-  const createdAtQuery: Prisma.OrderWhereInput["createdAt"] = {};
-  if (createdAfter) createdAtQuery.gte = createdAfter;
-  if (createdBefore) createdAtQuery.lte = createdBefore;
+async function getSalesData(
+  createdAfter: Date | null,
+  createdBefore: Date | null
+) {
+  const createdAtQuery: Prisma.OrderWhereInput["createdAt"] = {}
+  if (createdAfter) createdAtQuery.gte = createdAfter
+  if (createdBefore) createdAtQuery.lte = createdBefore
 
   const [data, chartData] = await Promise.all([
     db.order.aggregate({
       _sum: { pricePaidInCents: true },
-      _count: true
+      _count: true,
     }),
     db.order.findMany({
-      select: {
-        createdAt: true,
-        pricePaidInCents: true,
-      },
-      where: {
-        createdAt: createdAtQuery
-      },
-      orderBy: { createdAt: "asc" }
-    })
+      select: { createdAt: true, pricePaidInCents: true },
+      where: { createdAt: createdAtQuery },
+      orderBy: { createdAt: "asc" },
+    }),
   ]);
 
-  const dayArray = eachDayOfInterval(
-    interval(
-      createdAfter || startOfDay(chartData[0].createdAt), 
-      createdBefore || new Date()
-    )
-  ).map(day => {
+  const { array, format } = getChartDateArray(
+    createdAfter || startOfDay(chartData[0].createdAt),
+    createdBefore || new Date()
+  );
+
+  const dayArray = array.map(date => {
     return {
-      date: formatDate(day),
-      totalSales: 0
-    };
+      date: format(date),
+      totalSales: 0,
+    }
   });
 
   return {
     chartData: chartData.reduce((data, order) => {
-      const formattedDate = formatDate(order.createdAt);
-      const entry = dayArray.find(day => day.date == formattedDate);
-
-      if (entry == null) return data;
-      entry.totalSales += order.pricePaidInCents / 100;
-      return data;
-    }, dayArray), 
+      const formattedDate = format(order.createdAt)
+      const entry = dayArray.find(day => day.date === formattedDate)
+      if (entry == null) return data
+      entry.totalSales += order.pricePaidInCents / 100
+      return data
+    }, dayArray),
     amount: (data._sum.pricePaidInCents || 0) / 100,
-    numberOfSales: data._count 
+    numberOfSales: data._count,
   };
 }
 
-async function getUserData(createdAfter: Date | null, createdBefore: Date | null) {
-  const createdAtQuery: Prisma.UserWhereInput["createdAt"] = {};
-  if (createdAfter) createdAtQuery.gte = createdAfter;
-  if (createdBefore) createdAtQuery.lte = createdBefore;
-  
+async function getUserData(
+  createdAfter: Date | null,
+  createdBefore: Date | null
+) {
+  const createdAtQuery: Prisma.UserWhereInput["createdAt"] = {}
+  if (createdAfter) createdAtQuery.gte = createdAfter
+  if (createdBefore) createdAtQuery.lte = createdBefore
+
   const [userCount, orderData, chartData] = await Promise.all([
-     db.user.count(),
-     db.order.aggregate({
-      _sum: { pricePaidInCents: true }
+    db.user.count(),
+    db.order.aggregate({
+      _sum: { pricePaidInCents: true },
     }),
-    db.user.findMany({ 
+    db.user.findMany({
       select: { createdAt: true },
       where: { createdAt: createdAtQuery },
-      orderBy: { createdAt: "asc"}
-    })
+      orderBy: { createdAt: "asc" },
+    }),
   ]);
 
-  const dayArray = eachDayOfInterval(
-    interval(
-      createdAfter || startOfDay(chartData[0].createdAt), 
-      createdBefore || new Date()
-    )
-  ).map(day => {
+  const { array, format } = getChartDateArray(
+    createdAfter || startOfDay(chartData[0].createdAt),
+    createdBefore || new Date()
+  );
+
+  const dayArray = array.map(date => {
     return {
-      date: formatDate(day),
-      totalUsers: 0
-    };
+      date: format(date),
+      totalUsers: 0,
+    }
   });
 
   return {
     chartData: chartData.reduce((data, user) => {
-      const formattedDate = formatDate(user.createdAt);
-      const entry = dayArray.find(day => day.date == formattedDate);
-
-      if (entry == null) return data;
-      entry.totalUsers += 1;
-      return data;
+      const formattedDate = format(user.createdAt)
+      const entry = dayArray.find(day => day.date === formattedDate)
+      if (entry == null) return data
+      entry.totalUsers += 1
+      return data
     }, dayArray),
     userCount,
-    averageValuePerUser: userCount === 0 ? 0 : (orderData._sum.pricePaidInCents || 0) / userCount/ 100
+    averageValuePerUser:
+      userCount === 0
+        ? 0
+        : (orderData._sum.pricePaidInCents || 0) / userCount / 100,
   };
 }
 
-async function getProductData(createdAfter: Date | null, createdBefore: Date | null) {
+async function getProductData(
+  createdAfter: Date | null,
+  createdBefore: Date | null
+) {
   const createdAtQuery: Prisma.OrderWhereInput["createdAt"] = {}
-  if (createdAfter) createdAtQuery.gte = createdAfter;
-  if (createdBefore) createdAtQuery.lte = createdBefore;
+  if (createdAfter) createdAtQuery.gte = createdAfter
+  if (createdBefore) createdAtQuery.lte = createdBefore
 
-  const [activeCount, inActiveCount, chartData] = await Promise.all([
-    db.product.count({ where: { isAvailableForPurchase: true }}),
-    db.product.count({ where: { isAvailableForPurchase: false }}),
+  const [activeCount, inactiveCount, chartData] = await Promise.all([
+    db.product.count({ where: { isAvailableForPurchase: true } }),
+    db.product.count({ where: { isAvailableForPurchase: false } }),
     db.product.findMany({
       select: {
         name: true,
@@ -143,20 +147,22 @@ async function getProductData(createdAfter: Date | null, createdBefore: Date | n
   ]);
 
   return {
-    chartData: chartData.map(product => {
-      return {
-        name: product.name,
-        revenue: product.orders.reduce((sum, order) => {
-          return sum + order.pricePaidInCents / 100
-        }, 0)
-      }
-    }).filter(product => product.revenue > 0),
-    activeCount, 
-    inActiveCount 
-  };
+    chartData: chartData
+      .map(product => {
+        return {
+          name: product.name,
+          revenue: product.orders.reduce((sum, order) => {
+            return sum + order.pricePaidInCents / 100
+          }, 0),
+        }
+      })
+      .filter(product => product.revenue > 0),
+    activeCount,
+    inactiveCount,
+  }
 }
 
-export default async function AdminDashboard({ 
+export default async function AdminDashboard({
   searchParams: {
     totalSalesRange,
     totalSalesRangeFrom,
@@ -191,7 +197,7 @@ export default async function AdminDashboard({
       newCustomersRangeFrom,
       newCustomersRangeTo
     ) || RANGE_OPTIONS.last_7_days;
-
+  
   const revenueByProductRangeOption =
     getRangeOption(
       revenueByProductRange,
@@ -200,72 +206,75 @@ export default async function AdminDashboard({
     ) || RANGE_OPTIONS.all_time;
 
   const [salesData, userData, productData] = await Promise.all([
-    getSalesData(totalSalesRangeOption.startDate, totalSalesRangeOption.endDate),
-    getUserData(newCustomersRangeOption.startDate, newCustomersRangeOption.endDate),
-    getProductData(revenueByProductRangeOption.startDate, revenueByProductRangeOption.endDate)
+    getSalesData(
+      totalSalesRangeOption.startDate,
+      totalSalesRangeOption.endDate
+    ),
+    getUserData(
+      newCustomersRangeOption.startDate,
+      newCustomersRangeOption.endDate
+    ),
+    getProductData(
+      revenueByProductRangeOption.startDate,
+      revenueByProductRangeOption.endDate
+    ),
   ]);
 
   return (
-    <main className="grid gap-4">
+    <>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Dashboard 
-          title="Sales" 
-          subtitle={`${formatNumber(salesData.numberOfSales)} Orders`} 
-          body={formatCurrency(salesData.amount)} 
+        <DashboardCard
+          title="Sales"
+          subtitle={`${formatNumber(salesData.numberOfSales)} Orders`}
+          body={formatCurrency(salesData.amount)}
         />
-
-        <Dashboard 
-          title="Customers" 
-          subtitle={`${formatNumber(userData.averageValuePerUser)} Average Value`} 
-          body={formatNumber(userData.userCount)} 
+        <DashboardCard
+          title="Customers"
+          subtitle={`${formatCurrency(
+            userData.averageValuePerUser
+          )} Average Value`}
+          body={formatNumber(userData.userCount)}
         />
-
-        <Dashboard 
-          title="Products" 
-          subtitle={`${formatNumber(productData.inActiveCount)} Inactive`} 
+        <DashboardCard
+          title="Active Products"
+          subtitle={`${formatNumber(productData.inactiveCount)} Inactive`}
           body={formatNumber(productData.activeCount)}
         />
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ChartCard 
-          title="Total Sales" 
-          queryKey="totalSalesRange" 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-8">
+        <ChartCard
+          title="Total Sales"
+          queryKey="totalSalesRange"
           selectedRangeLabel={totalSalesRangeOption.label}
         >
-          <OrdersByDayChart 
-            data={salesData.chartData} 
-          />
+          <OrdersByDayChart data={salesData.chartData} />
         </ChartCard>
-        <ChartCard 
-          title="New Clients" 
+        <ChartCard
+          title="New Customers"
           queryKey="newCustomersRange"
           selectedRangeLabel={newCustomersRangeOption.label}
         >
-          <UsersByDayChart
-            data={userData.chartData} 
-          />
+          <UsersByDayChart data={userData.chartData} />
         </ChartCard>
-        <ChartCard 
-          title="Revenue By Product" 
+        <ChartCard
+          title="Revenue By Product"
           queryKey="revenueByProductRange"
           selectedRangeLabel={revenueByProductRangeOption.label}
         >
-          <RevenueByProductChart
-            data={productData.chartData} 
-          />
+          <RevenueByProductChart data={productData.chartData} />
         </ChartCard>
       </div>
-    </main>
+    </>
   );
 }
 
 type DashboardCardProps = {
-  title: string;
-  subtitle: string;
-  body: string;
+  title: string
+  subtitle: string
+  body: string
 }
 
-function Dashboard({ title, subtitle, body}: DashboardCardProps) {
+function DashboardCard({ title, subtitle, body }: DashboardCardProps) {
   return (
     <Card>
       <CardHeader>
@@ -284,8 +293,8 @@ function getChartDateArray(startDate: Date, endDate: Date = new Date()) {
   if (days < 30) {
     return {
       array: eachDayOfInterval(interval(startDate, endDate)),
-      format: formatDate
-    }
+      format: formatDate,
+    };
   }
 
   const weeks = differenceInWeeks(endDate, startDate);
@@ -293,10 +302,25 @@ function getChartDateArray(startDate: Date, endDate: Date = new Date()) {
     return {
       array: eachWeekOfInterval(interval(startDate, endDate)),
       format: (date: Date) => {
-        const start = startOfWeek(date);
-        const end = endOfWeek(date);
-        return `${formatDate(start)} - ${formatDate(end)}`;
-      }
-    }
+        const start = max([startOfWeek(date), startDate])
+        const end = min([endOfWeek(date), endDate])
+
+        return `${formatDate(start)} - ${formatDate(end)}`
+      },
+    };
   }
+
+  const months = differenceInMonths(endDate, startDate);
+  if (months < 30) {
+    return {
+      array: eachMonthOfInterval(interval(startDate, endDate)),
+      format: new Intl.DateTimeFormat("en", { month: "long", year: "numeric" })
+        .format,
+    };
+  }
+
+  return {
+    array: eachYearOfInterval(interval(startDate, endDate)),
+    format: new Intl.DateTimeFormat("en", { year: "numeric" }).format,
+  };
 }
