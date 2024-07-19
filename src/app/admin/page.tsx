@@ -159,22 +159,50 @@ async function getProductData(createdAfter: Date | null, createdBefore: Date | n
 export default async function AdminDashboard({ 
   searchParams: {
     totalSalesRange,
+    totalSalesRangeFrom,
+    totalSalesRangeTo,
     newCustomersRange,
-    revenueByProductRange
-  } 
+    newCustomersRangeFrom,
+    newCustomersRangeTo,
+    revenueByProductRange,
+    revenueByProductRangeFrom,
+    revenueByProductRangeTo,
+  },
 }: {
   searchParams: {
-    totalSalesRange?: string;
-    newCustomersRange?: string;
-    revenueByProductRange?: string;
+    totalSalesRange?: string
+    totalSalesRangeFrom?: string
+    totalSalesRangeTo?: string
+    newCustomersRange?: string
+    newCustomersRangeFrom?: string
+    newCustomersRangeTo?: string
+    revenueByProductRange?: string
+    revenueByProductRangeFrom?: string
+    revenueByProductRangeTo?: string
   }
 }) {
-  const totalSalesRangeOption = getRangeOption(totalSalesRange) || RANGE_OPTIONS.last_7_days;
+  const totalSalesRangeOption =
+    getRangeOption(totalSalesRange, totalSalesRangeFrom, totalSalesRangeTo) ||
+    RANGE_OPTIONS.last_7_days;
+
+  const newCustomersRangeOption =
+    getRangeOption(
+      newCustomersRange,
+      newCustomersRangeFrom,
+      newCustomersRangeTo
+    ) || RANGE_OPTIONS.last_7_days;
+
+  const revenueByProductRangeOption =
+    getRangeOption(
+      revenueByProductRange,
+      revenueByProductRangeFrom,
+      revenueByProductRangeTo
+    ) || RANGE_OPTIONS.all_time;
 
   const [salesData, userData, productData] = await Promise.all([
     getSalesData(totalSalesRangeOption.startDate, totalSalesRangeOption.endDate),
-    getUserData(subDays(new Date(), 5), new Date()),
-    getProductData(subDays(new Date(), 6), new Date())
+    getUserData(newCustomersRangeOption.startDate, newCustomersRangeOption.endDate),
+    getProductData(revenueByProductRangeOption.startDate, revenueByProductRangeOption.endDate)
   ]);
 
   return (
@@ -208,12 +236,20 @@ export default async function AdminDashboard({
             data={salesData.chartData} 
           />
         </ChartCard>
-        <ChartCard title="New Clients" queryKey="newCustomersRange">
+        <ChartCard 
+          title="New Clients" 
+          queryKey="newCustomersRange"
+          selectedRangeLabel={newCustomersRangeOption.label}
+        >
           <UsersByDayChart
             data={userData.chartData} 
           />
         </ChartCard>
-        <ChartCard title="Revenue By Product" queryKey="revenueByProductRange">
+        <ChartCard 
+          title="Revenue By Product" 
+          queryKey="revenueByProductRange"
+          selectedRangeLabel={revenueByProductRangeOption.label}
+        >
           <RevenueByProductChart
             data={productData.chartData} 
           />
