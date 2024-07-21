@@ -43,7 +43,7 @@ export async function emailOrderHistory(
     message: "Check your email to view your order history and download your products"
   }
 
-  const orders = user.orders.map(async order => {
+  const orders = user.orders.map(async (order: any) => {
     return {
       ...order,
       downloadVerificationId: (
